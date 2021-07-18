@@ -28,14 +28,25 @@ Points Remaining: %d")
 
 (defn- character-build-ui [points {:keys [name str dex con wis int cha]}]
   [(format character-build-template name str dex con wis int cha points)
-    (map (partial filter
-          (comp not nil?))
-     [[(ck-upper points str ["Str +" "str_up"]) (ck-lower points str ["Str -" "str_dn"])]
-      [(ck-upper points dex ["Dex +" "dex_up"]) (ck-lower points dex ["Dex -" "dex_dn"])]
-      [(ck-upper points con ["Con +" "con_up"]) (ck-lower points con ["Con -" "con_dn"])]
-      [(ck-upper points wis ["Wis +" "wis_up"]) (ck-lower points wis ["Wis -" "wis_dn"])]
-      [(ck-upper points int ["Int +" "int_up"]) (ck-lower points int ["Int -" "int_dn"])]
-      [(ck-upper points cha ["Cha +" "cha_up"]) (ck-lower points cha ["Cha -" "cha_dn"])]])])
+   (filter
+    not-empty
+    (map
+     (partial filter
+              (comp not nil?))
+     [[(ck-upper points str ["Str +" "char_create_str_up"])
+       (ck-lower points str ["Str -" "char_create_str_dn"])]
+      [(ck-upper points dex ["Dex +" "char_create_dex_up"])
+       (ck-lower points dex ["Dex -" "char_create_dex_dn"])]
+      [(ck-upper points con ["Con +" "char_create_con_up"])
+       (ck-lower points con ["Con -" "char_create_con_dn"])]
+      [(ck-upper points wis ["Wis +" "char_create_wis_up"])
+       (ck-lower points wis ["Wis -" "char_create_wis_dn"])]
+      [(ck-upper points int ["Int +" "char_create_int_up"])
+       (ck-lower points int ["Int -" "char_create_int_dn"])]
+      [(ck-upper points cha ["Cha +" "char_create_cha_up"])
+       (ck-lower points cha ["Cha -" "char_create_cha_dn"])]
+      [(when (= points 0) ["Done" "char_create_done"])]
+      ]))])
 
 (defn handle-new-character [^Update u]
   (let [[_ _ char-name] (-> u .getMessage .getText hu/split-ws)
