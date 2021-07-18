@@ -1,4 +1,6 @@
 {:deps {org.clojure/clojure {:mvn/version "1.11.0-alpha1"}
         org.telegram/telegrambots {:mvn/version "5.3.0"}
-        org.slf4j/slf4j-api {:mvn/version "1.7.31"}}
+        org.slf4j/slf4j-simple {:mvn/version "1.7.31"}
+        org.slf4j/slf4j-api {:mvn/version "1.7.31"}
+        org.clojure/tools.logging {:mvn/version "1.1.0"}}
  }

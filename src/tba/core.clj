@@ -1,25 +1,15 @@
 (ns tba.core
   (:gen-class)
-  (:require [tba.telegram :as telegram]))
+  (:require [tba.telegram.handlers :as handlers]
+   [tba.telegram :as telegram]))
 
 (def ^:private +token+ (System/getenv "TELEGRAM_BOT_TOKEN"))
-
-(defn character-handler [update]
-  (telegram/->TextResponse
-   (-> update .getMessage .getChatId str)
-   (-> update .getMessage .getText)))
-
-(defn select-handler [& _] :character)
-
-(defmulti router select-handler)
-(defmethod router :character [u]  (character-handler u))
-(defmethod router :default [& _] nil)
 
 (defn start [name token update-fn]
   (telegram/start name token :update-fn update-fn))
 
 (defn -main []
-  (start "tba" +token+ router))
+  (start "tba" +token+ handlers/router))
 
 (comment
   (def debug (atom {}))
