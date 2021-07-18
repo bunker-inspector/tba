@@ -14,6 +14,8 @@
              (> stat character/+create-stat-min+))
     expr))
 
+(def building-characters (atom {}))
+
 (def ^:private character-build-template
   "Hail, %s!
 
@@ -33,29 +35,58 @@ Points Remaining: %d")
     (map
      (partial filter
               (comp not nil?))
-     [[(ck-upper points str ["Str +" "char_create_str_up"])
-       (ck-lower points str ["Str -" "char_create_str_dn"])]
-      [(ck-upper points dex ["Dex +" "char_create_dex_up"])
-       (ck-lower points dex ["Dex -" "char_create_dex_dn"])]
-      [(ck-upper points con ["Con +" "char_create_con_up"])
-       (ck-lower points con ["Con -" "char_create_con_dn"])]
-      [(ck-upper points wis ["Wis +" "char_create_wis_up"])
-       (ck-lower points wis ["Wis -" "char_create_wis_dn"])]
-      [(ck-upper points int ["Int +" "char_create_int_up"])
-       (ck-lower points int ["Int -" "char_create_int_dn"])]
-      [(ck-upper points cha ["Cha +" "char_create_cha_up"])
-       (ck-lower points cha ["Cha -" "char_create_cha_dn"])]
-      [(when (= points 0) ["Done" "char_create_done"])]
-      ]))])
+     [[(ck-lower points str ["Str -" "character_build_strdn"])
+       (ck-upper points str ["Str +" "character_build_strup"])]
+      [(ck-lower points dex ["Dex -" "character_build_dexdn"])
+       (ck-upper points dex ["Dex +" "character_build_dexup"])]
+      [(ck-lower points con ["Con -" "character_build_condn"])
+       (ck-upper points con ["Con +" "character_build_conup"])]
+      [(ck-lower points wis ["Wis -" "character_build_wisdn"])
+       (ck-upper points wis ["Wis +" "character_build_wisup"])]
+      [(ck-lower points int ["Int -" "character_build_intdn"])
+       (ck-upper points int ["Int +" "character_build_intup"])]
+      [(ck-lower points cha ["Cha -" "character_build_chadn"])
+       (ck-upper points cha ["Cha +" "character_build_chaup"])]
+      [(when (= points 0) ["Done" "character_build_done"])]]))])
 
 (defn handle-new-character [^Update u]
   (let [[_ _ char-name] (-> u .getMessage .getText hu/split-ws)
-        character (character/default char-name)
-        [text kb] (character-build-ui character/+create-points+ character)]
+        character (character/base char-name)
+        [text kb] (character-build-ui character/+create-points+ character)
+        user-id (-> u .getMessage .getFrom .getId)]
+    (swap! building-characters assoc user-id [character/+create-points+ character])
     (telegram/->CreateResponse (-> u .getMessage .getChatId str)
                                text
                                kb)))
 
-(defmulti handler (partial hu/cmd-key 1))
-(defmethod handler :new [u] (handle-new-character u))
+(defn- apply-action [character action points]
+  (case action
+    "strup" [(dec points) (update character :str inc)]
+    "strdn" [(inc points) (update character :str dec)]
+    "dexup" [(dec points) (update character :dex inc)]
+    "dexdn" [(inc points) (update character :dex dec)]
+    "conup" [(dec points) (update character :con inc)]
+    "condn" [(inc points) (update character :con dec)]
+    "wisup" [(dec points) (update character :wis inc)]
+    "wisdn" [(inc points) (update character :wis dec)]
+    "intup" [(dec points) (update character :int inc)]
+    "intdn" [(inc points) (update character :int dec)]
+    "chaup" [(dec points) (update character :cha inc)]
+    "chadn" [(inc points) (update character :cha dec)]))
+
+(defn handle-build-callback [^Update u]
+  (let [user-id (-> u .getCallbackQuery .getFrom .getId)
+        [points character] (@building-characters user-id)
+        [_ _ action] (-> u .getCallbackQuery .getData hu/split-us)
+        [points character :as build-data] (apply-action character action points)
+        [text kb] (character-build-ui points character)]
+    (swap! building-characters assoc user-id build-data)
+    (telegram/->EditResponse (-> u .getCallbackQuery .getMessage .getChatId str)
+                             (-> u .getCallbackQuery .getMessage .getMessageId)
+                             text
+                             kb)))
+
+(defmulti handler (partial hu/find-relevant-key 1))
+(defmethod handler [:command :new] [u] (handle-new-character u))
+(defmethod handler [:callback :build] [u] (handle-build-callback u))
 (defmethod handler :default [& _] nil)

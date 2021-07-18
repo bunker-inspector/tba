@@ -5,11 +5,12 @@
            org.telegram.telegrambots.meta.TelegramBotsApi
            org.telegram.telegrambots.updatesreceivers.DefaultBotSession
            org.telegram.telegrambots.meta.api.methods.send.SendMessage
+           org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText
            org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup
            org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton))
 
 (defrecord CreateResponse [chat-id text kb])
-(defrecord EditResponse [chat-id text kb])
+(defrecord EditResponse [chat-id msg-id text kb])
 
 (defn- build-kb [kb]
   (let [built (map (fn [row]
@@ -27,6 +28,15 @@
 (defmethod respond-with CreateResponse [{:keys [chat-id text kb]}]
   (let [msg (doto (SendMessage.)
               (.setChatId chat-id)
+              (.setText text))]
+    (when kb
+      (.setReplyMarkup msg (build-kb kb)))
+    msg))
+
+(defmethod respond-with EditResponse [{:keys [chat-id msg-id text kb]}]
+  (let [msg (doto (EditMessageText.)
+              (.setChatId chat-id)
+              (.setMessageId msg-id)
               (.setText text))]
     (when kb
       (.setReplyMarkup msg (build-kb kb)))

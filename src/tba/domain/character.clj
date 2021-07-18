@@ -7,7 +7,7 @@
 
 (defrecord Char [name level exp str dex con wis int cha])
 
-(defn default [name]
+(defn base [name]
    (Char.
     name
     1
