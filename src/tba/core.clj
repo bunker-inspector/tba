@@ -1,15 +1,14 @@
 (ns tba.core
   (:gen-class)
-  (:require [tba.telegram.handlers :as handlers]
-   [tba.telegram :as telegram]))
-
-(def ^:private +token+ (System/getenv "TELEGRAM_BOT_TOKEN"))
+  (:require [tba.config :as config]
+            [tba.telegram :as telegram]
+            [tba.telegram.handlers :as handlers]))
 
 (defn start [name token update-fn]
   (telegram/start name token :update-fn update-fn))
 
 (defn -main []
-  (start "tba" +token+ handlers/router))
+  (start "tba" config/telegram-bot-token handlers/router))
 
 (comment
   (def debug (atom {}))
