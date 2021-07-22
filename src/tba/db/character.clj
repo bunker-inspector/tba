@@ -1,11 +1,18 @@
 (ns tba.db.character
-  (:require [tba.db :as db]
-            [next.jdbc :as jdbc]
-            [next.jdbc.sql :as sql]
-            [honey.sql :as honey]))
+  (:require [tba.db :as db]))
 
 (defn save [character]
-  (sql/insert! db/config (honey/format {:insert-into :characters :values [character]})))
+  (db/execute-one! {:insert-into :characters
+                                    :values [character]}))
+
+(defn delete [{id :id}]
+  (db/execute-one! {:delete-from :characters
+                      :where [:= :id id]}))
+
+(defn fetch [user-id]
+  (db/execute-one! {:select [:*]
+                    :from [:characters]
+                    :where [:= :user-id user-id]}))
 
 (comment
-  (jdbc/execute! db/config (honey/format {:select [:*] :from [:characters]})))
+  (db/execute-one! {:select [:*] :from [:characters]}))

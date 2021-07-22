@@ -13,3 +13,6 @@ CREATE TABLE IF NOT EXISTS characters (
 
   FOREIGN KEY(user_id) REFERENCES users(id)
 );
+
+CREATE UNIQUE INDEX characters_user_id_uidx
+  ON characters(user_id);

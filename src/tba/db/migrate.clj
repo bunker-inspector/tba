@@ -9,4 +9,4 @@
 (comment
   (require '[ragtime.repl :as repl])
   (repl/migrate config)
-  (repl/rolback config))
+  (repl/rollback config))

@@ -2,7 +2,8 @@
   (:require [tba.domain.character :as domain.character]
             [tba.engine.character :as engine.character]
             [tba.telegram :as telegram]
-            [tba.telegram.handlers.util :as hu])
+            [tba.telegram.handlers.character.me :as me]
+            [tba.telegram.handlers.util :as handlers.util])
   (:import org.telegram.telegrambots.meta.api.objects.Update))
 
 (defn- ck-upper [points stat expr]
@@ -52,7 +53,7 @@ Points Remaining: %d")
 
 (defn handle-new-character [^Update u]
   (let [user-id (-> u .getMessage .getFrom .getId)
-        [_ _ char-name] (-> u .getMessage .getText hu/split-ws)
+        [_ _ char-name] (-> u .getMessage .getText handlers.util/split-ws)
         character (domain.character/base user-id char-name)
         [text kb] (character-build-ui domain.character/+create-points+ character)]
     (swap! building-characters assoc user-id [domain.character/+create-points+ character])
@@ -78,7 +79,7 @@ Points Remaining: %d")
 (defn handle-build-callback [^Update u]
   (let [user-id (-> u .getCallbackQuery .getFrom .getId)
         [points character] (@building-characters user-id)
-        [_ _ action] (-> u .getCallbackQuery .getData hu/split-us)
+        [_ _ action] (-> u .getCallbackQuery .getData handlers.util/split-us)
         [points character :as build-data] (apply-action character action points)
         [text kb] (character-build-ui points character)]
     (swap! building-characters assoc user-id build-data)
@@ -89,11 +90,44 @@ Points Remaining: %d")
 
 (defn handle-done-callback [^Update u]
   (let [user-id (-> u .getCallbackQuery .getFrom .getId)
-        [_ character] (@building-characters user-id)]
-   (engine.character/create-character character)))
+        [_ {character-name :name :as character}] (@building-characters user-id)]
+    (engine.character/create character)
+    (telegram/map->EditResponse {:chat-id (-> u .getCallbackQuery .getMessage .getChatId str)
+                                 :msg-id (-> u .getCallbackQuery .getMessage .getMessageId)
+                                 :text (format "%s's journey begins!" character-name)})))
 
-(defmulti handler (partial hu/find-relevant-key 1))
+(def +me-template+
+  "
+Name: %s
+Level: %d
+Exp: %d
+Str: %d
+Dex: %d
+Con: %d
+Wis: %d
+Int: %d
+Cha: %d
+")
+
+(defn handle-me [^Update u]
+  (let [user-id (-> u .getMessage .getFrom .getId)
+        character (engine.character/fetch user-id)]
+    (telegram/map->CreateResponse {:chat-id (-> u .getMessage .getChatId str)
+                                   :msg-id (-> u .getMessage .getMessageId)
+                                   :text (format +me-template+
+                                                 (:characters/name character)
+                                                 (:characters/level character)
+                                                 (:characters/exp character)
+                                                 (:characters/str character)
+                                                 (:characters/dex character)
+                                                 (:characters/con character)
+                                                 (:characters/wis character)
+                                                 (:characters/int character)
+                                                 (:characters/cha character))})))
+
+(defmulti handler (partial handlers.util/find-relevant-key 1))
 (defmethod handler [:command :new] [u] (handle-new-character u))
+(defmethod handler [:command :me] [u] (handle-me u))
 (defmethod handler [:callback :build] [u] (handle-build-callback u))
 (defmethod handler [:callback :done] [u] (handle-done-callback u))
 (defmethod handler :default [& _] nil)
