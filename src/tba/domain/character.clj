@@ -5,16 +5,17 @@
 (def +create-stat-min+ 6)
 (def +create-points+ 10)
 
-(defrecord Char [name level exp str dex con wis int cha])
+(defrecord Char [user-id name level exp str dex con wis int cha])
 
-(defn base [name]
-   (Char.
-    name
-    1
-    0
-    +base-stat+
-    +base-stat+
-    +base-stat+
-    +base-stat+
-    +base-stat+
-    +base-stat+))
+(defn base [user-id name]
+  (Char.
+   user-id
+   name
+   1
+   0
+   +base-stat+
+   +base-stat+
+   +base-stat+
+   +base-stat+
+   +base-stat+
+   +base-stat+))

@@ -4,6 +4,8 @@
             [next.jdbc.sql :as sql]
             [honey.sql :as honey]))
 
+(defn save [character]
+  (sql/insert! db/config (honey/format {:insert-into :characters :values [character]})))
+
 (comment
-  (jdbc/execute! (-> db/config jdbc/get-datasource)
-                 (honey/format {:select [:*] :from [:characters]})))
+  (jdbc/execute! db/config (honey/format {:select [:*] :from [:characters]})))

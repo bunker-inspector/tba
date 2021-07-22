@@ -1,17 +1,18 @@
 (ns tba.telegram.handlers.character
-  (:require [tba.domain.character :as character]
+  (:require [tba.domain.character :as domain.character]
+            [tba.engine.character :as engine.character]
             [tba.telegram :as telegram]
             [tba.telegram.handlers.util :as hu])
   (:import org.telegram.telegrambots.meta.api.objects.Update))
 
 (defn- ck-upper [points stat expr]
   (when (and (> points 0)
-             (< stat character/+create-stat-max+))
+             (< stat domain.character/+create-stat-max+))
     expr))
 
 (defn- ck-lower [points stat expr]
-  (when (and (< points character/+base-stat+)
-             (> stat character/+create-stat-min+))
+  (when (and (< points domain.character/+base-stat+)
+             (> stat domain.character/+create-stat-min+))
     expr))
 
 (def building-characters (atom {}))
@@ -47,14 +48,14 @@ Points Remaining: %d")
        (ck-upper points int ["Int +" "character_build_intup"])]
       [(ck-lower points cha ["Cha -" "character_build_chadn"])
        (ck-upper points cha ["Cha +" "character_build_chaup"])]
-      [(when (= points 0) ["Done" "character_build_done"])]]))])
+      [(when (= points 0) ["Done" "character_done"])]]))])
 
 (defn handle-new-character [^Update u]
-  (let [[_ _ char-name] (-> u .getMessage .getText hu/split-ws)
-        character (character/base char-name)
-        [text kb] (character-build-ui character/+create-points+ character)
-        user-id (-> u .getMessage .getFrom .getId)]
-    (swap! building-characters assoc user-id [character/+create-points+ character])
+  (let [user-id (-> u .getMessage .getFrom .getId)
+        [_ _ char-name] (-> u .getMessage .getText hu/split-ws)
+        character (domain.character/base user-id char-name)
+        [text kb] (character-build-ui domain.character/+create-points+ character)]
+    (swap! building-characters assoc user-id [domain.character/+create-points+ character])
     (telegram/->CreateResponse (-> u .getMessage .getChatId str)
                                text
                                kb)))
@@ -86,7 +87,13 @@ Points Remaining: %d")
                              text
                              kb)))
 
+(defn handle-done-callback [^Update u]
+  (let [user-id (-> u .getCallbackQuery .getFrom .getId)
+        [_ character] (@building-characters user-id)]
+   (engine.character/create-character character)))
+
 (defmulti handler (partial hu/find-relevant-key 1))
 (defmethod handler [:command :new] [u] (handle-new-character u))
 (defmethod handler [:callback :build] [u] (handle-build-callback u))
+(defmethod handler [:callback :done] [u] (handle-done-callback u))
 (defmethod handler :default [& _] nil)
