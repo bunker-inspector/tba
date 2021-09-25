@@ -1,5 +1,6 @@
 (ns tba.telegram
-  (:require [clojure.tools.logging :as log])
+  (:require [clojure.tools.logging :as log]
+            [clojure.string :as str])
   (:import org.telegram.telegrambots.bots.TelegramLongPollingBot
            org.telegram.telegrambots.meta.api.objects.Update
            org.telegram.telegrambots.meta.TelegramBotsApi
@@ -45,6 +46,32 @@
 (defmethod respond-with :default [msg]
   (log/infof "Not responding to %s" msg))
 
+(defn- split-ws [s]
+  (str/split s #"\s+"))
+
+(defn- split-us [s]
+  (str/split s #"_"))
+
+(defn- ->command-map
+  [^Update u]
+  {:kind   :command
+   :tokens (-> u .getMessage .getText (subs 1) split-ws)})
+
+(defn- ->callback-map
+  [^Update u]
+  {:kind   :callback
+   :tokens (-> u .getCallbackQuery .getData split-us)})
+
+(defn- ->handleable-map [u]
+  (merge
+   (if (.hasCallbackQuery u)
+     (->callback-map u)
+     (->command-map u))
+   {:update u
+    :chat-id (-> u .getMessage .getChatId str)
+    :msg-id (-> u .getMessage .getMessageId)
+    :user-id (-> u .getMessage .getFrom .getId)}))
+
 (defn start [name token
              & {:keys [update-fn]
                 :or {update-fn (fn [_] nil)}}]
@@ -54,7 +81,7 @@
              []
 
               (onUpdateReceived [^Update u]
-                (when-let [response (update-fn u)]
+                (when-let [response (update-fn (->handleable-map u))]
                   (.execute this (respond-with response))))
 
               (getBotUsername []

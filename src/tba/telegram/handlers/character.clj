@@ -2,7 +2,6 @@
   (:require [tba.domain.character :as domain.character]
             [tba.engine.character :as engine.character]
             [tba.telegram :as telegram]
-            [tba.telegram.handlers.character.me :as me]
             [tba.telegram.handlers.util :as handlers.util])
   (:import org.telegram.telegrambots.meta.api.objects.Update))
 
@@ -125,9 +124,9 @@ Cha: %d
                                                  (:characters/int character)
                                                  (:characters/cha character))})))
 
-(defmulti handler (partial handlers.util/find-relevant-key 1))
-(defmethod handler [:command :new] [u] (handle-new-character u))
-(defmethod handler [:command :me] [u] (handle-me u))
-(defmethod handler [:callback :build] [u] (handle-build-callback u))
-(defmethod handler [:callback :done] [u] (handle-done-callback u))
+(defmulti handler handlers.util/current)
+(defmethod handler [:command :new] [h] (handle-new-character (handlers.util/next h)))
+(defmethod handler [:command :me] [h] (handle-me h))
+(defmethod handler [:callback :build] [h] (handle-build-callback h))
+(defmethod handler [:callback :done] [h] (handle-done-callback h))
 (defmethod handler :default [& _] nil)
