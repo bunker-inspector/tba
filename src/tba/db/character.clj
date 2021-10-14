@@ -1,13 +1,13 @@
 (ns tba.db.character
   (:require [tba.db :as db]))
 
-(defn save [character]
-  (db/execute-one! {:insert-into :characters
-                                    :values [character]}))
+(defn delete [params]
+  (db/delete :characters params))
 
-(defn delete [{id :id}]
-  (db/execute-one! {:delete-from :characters
-                      :where [:= :id id]}))
+(defn save [character]
+  (delete (select-keys character [:user-id]))
+  (db/execute-one! {:insert-into :characters
+                    :values [character]}))
 
 (defn fetch [user-id]
   (db/execute-one! {:select [:*]

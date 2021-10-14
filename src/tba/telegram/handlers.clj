@@ -1,8 +1,8 @@
 (ns tba.telegram.handlers
   (:require [tba.telegram.handlers
-             [character :as character]
-             [util :refer [find-relevant-key]]]))
+             [character :as character]]
+            [tba.telegram.update-map :as um]))
 
-(defmulti router (comp second (partial find-relevant-key 0)))
-(defmethod router :character [u] (character/handler u))
+(defmulti router um/param-root)
+(defmethod router :character [um] (-> um um/advance character/handler))
 (defmethod router :default [& _] nil)

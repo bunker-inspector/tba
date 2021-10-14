@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS characters (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL UNIQUE,
   name TEXT NOT NULL,
   level INTEGER NOT NULL DEFAULT 1,
   exp INTEGER NOT NULL DEFAULT 0,
@@ -13,6 +13,3 @@ CREATE TABLE IF NOT EXISTS characters (
 
   FOREIGN KEY(user_id) REFERENCES users(id)
 );
-
-CREATE UNIQUE INDEX characters_user_id_uidx
-  ON characters(user_id);

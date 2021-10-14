@@ -1,10 +1,10 @@
 (ns tba.telegram.handlers.character
-  (:require [tba.domain.character :as domain.character]
+  (:require [clojure.string :as str]
+            [tba.domain.character :as domain.character]
             [tba.engine.character :as engine.character]
             [tba.telegram :as telegram]
-            [tba.telegram.handlers.character.me :as me]
-            [tba.telegram.handlers.util :as handlers.util])
-  (:import org.telegram.telegrambots.meta.api.objects.Update))
+            [tba.telegram.update-map :as um]
+            [tba.telegram.handlers.character.me :as me]))
 
 (defn- ck-upper [points stat expr]
   (when (and (> points 0)
@@ -51,52 +51,51 @@ Points Remaining: %d")
        (ck-upper points cha ["Cha +" "character_build_chaup"])]
       [(when (= points 0) ["Done" "character_done"])]]))])
 
-(defn handle-new-character [^Update u]
-  (let [user-id (-> u .getMessage .getFrom .getId)
-        [_ _ char-name] (-> u .getMessage .getText handlers.util/split-ws)
-        character (domain.character/base user-id char-name)
+(defn handle-new-character
+  [{user-id :user-id params :params chat-id :chat-id}]
+  (let [character (domain.character/base user-id (str/join " " (map name (rest params))))
         [text kb] (character-build-ui domain.character/+create-points+ character)]
     (swap! building-characters assoc user-id [domain.character/+create-points+ character])
-    (telegram/->CreateResponse (-> u .getMessage .getChatId str)
+    (telegram/->CreateResponse chat-id
                                text
                                kb)))
 
 (defn- apply-action [character action points]
   (case action
-    "strup" [(dec points) (update character :str inc)]
-    "strdn" [(inc points) (update character :str dec)]
-    "dexup" [(dec points) (update character :dex inc)]
-    "dexdn" [(inc points) (update character :dex dec)]
-    "conup" [(dec points) (update character :con inc)]
-    "condn" [(inc points) (update character :con dec)]
-    "wisup" [(dec points) (update character :wis inc)]
-    "wisdn" [(inc points) (update character :wis dec)]
-    "intup" [(dec points) (update character :int inc)]
-    "intdn" [(inc points) (update character :int dec)]
-    "chaup" [(dec points) (update character :cha inc)]
-    "chadn" [(inc points) (update character :cha dec)]))
+    :strup [(dec points) (update character :str inc)]
+    :strdn [(inc points) (update character :str dec)]
+    :dexup [(dec points) (update character :dex inc)]
+    :dexdn [(inc points) (update character :dex dec)]
+    :conup [(dec points) (update character :con inc)]
+    :condn [(inc points) (update character :con dec)]
+    :wisup [(dec points) (update character :wis inc)]
+    :wisdn [(inc points) (update character :wis dec)]
+    :intup [(dec points) (update character :int inc)]
+    :intdn [(inc points) (update character :int dec)]
+    :chaup [(dec points) (update character :cha inc)]
+    :chadn [(inc points) (update character :cha dec)]))
 
-(defn handle-build-callback [^Update u]
-  (let [user-id (-> u .getCallbackQuery .getFrom .getId)
-        [points character] (@building-characters user-id)
-        [_ _ action] (-> u .getCallbackQuery .getData handlers.util/split-us)
+(defn handle-build-callback [{:keys [user-id
+                                     chat-id
+                                     message-id]
+                              [_ action] :params}]
+  (let [[points character] (@building-characters user-id)
         [points character :as build-data] (apply-action character action points)
         [text kb] (character-build-ui points character)]
     (swap! building-characters assoc user-id build-data)
-    (telegram/->EditResponse (-> u .getCallbackQuery .getMessage .getChatId str)
-                             (-> u .getCallbackQuery .getMessage .getMessageId)
+    (telegram/->EditResponse chat-id
+                             message-id
                              text
                              kb)))
 
-(defn handle-done-callback [^Update u]
-  (let [user-id (-> u .getCallbackQuery .getFrom .getId)
-        [_ {character-name :name :as character}] (@building-characters user-id)]
+(defn handle-done-callback [{:keys [user-id chat-id message-id]}]
+  (let [[_ {character-name :name :as character}] (@building-characters user-id)]
     (engine.character/create character)
-    (telegram/map->EditResponse {:chat-id (-> u .getCallbackQuery .getMessage .getChatId str)
-                                 :msg-id (-> u .getCallbackQuery .getMessage .getMessageId)
+    (telegram/map->EditResponse {:chat-id chat-id
+                                 :message-id message-id
                                  :text (format "%s's journey begins!" character-name)})))
 
-(def +me-template+
+(def ^:private +me-template+
   "
 Name: %s
 Level: %d
@@ -109,25 +108,27 @@ Int: %d
 Cha: %d
 ")
 
-(defn handle-me [^Update u]
-  (let [user-id (-> u .getMessage .getFrom .getId)
-        character (engine.character/fetch user-id)]
-    (telegram/map->CreateResponse {:chat-id (-> u .getMessage .getChatId str)
-                                   :msg-id (-> u .getMessage .getMessageId)
-                                   :text (format +me-template+
-                                                 (:characters/name character)
-                                                 (:characters/level character)
-                                                 (:characters/exp character)
-                                                 (:characters/str character)
-                                                 (:characters/dex character)
-                                                 (:characters/con character)
-                                                 (:characters/wis character)
-                                                 (:characters/int character)
-                                                 (:characters/cha character))})))
+(defn handle-me [{:keys [user-id chat-id message-id]}]
+  (let [character (engine.character/fetch user-id)
+        response-text (if character
+                        (format +me-template+
+                                (:characters/name character)
+                                (:characters/level character)
+                                (:characters/exp character)
+                                (:characters/str character)
+                                (:characters/dex character)
+                                (:characters/con character)
+                                (:characters/wis character)
+                                (:characters/int character)
+                                (:characters/cha character))
+                        "You have not created a character.")]
+    (telegram/map->CreateResponse {:chat-id chat-id
+                                   :message-id message-id
+                                   :text response-text})))
 
-(defmulti handler (partial handlers.util/find-relevant-key 1))
-(defmethod handler [:command :new] [u] (handle-new-character u))
-(defmethod handler [:command :me] [u] (handle-me u))
-(defmethod handler [:callback :build] [u] (handle-build-callback u))
-(defmethod handler [:callback :done] [u] (handle-done-callback u))
+(defmulti handler um/curr-step)
+(defmethod handler [:command :new] [um] (handle-new-character um))
+(defmethod handler [:command :me] [um] (handle-me um))
+(defmethod handler [:callback :build] [um] (handle-build-callback um))
+(defmethod handler [:callback :done] [um] (handle-done-callback um))
 (defmethod handler :default [& _] nil)
