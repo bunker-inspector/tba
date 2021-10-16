@@ -13,7 +13,7 @@
 (defn curr-step
   [{update-type :update-type params :params}]
   (if (empty? params)
-    [update-type :end]
+    [update-type :done]
     [update-type (first params)]))
 
 (defn advance

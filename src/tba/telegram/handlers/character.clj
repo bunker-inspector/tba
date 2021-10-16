@@ -95,40 +95,9 @@ Points Remaining: %d")
                                  :message-id message-id
                                  :text (format "%s's journey begins!" character-name)})))
 
-(def ^:private +me-template+
-  "
-Name: %s
-Level: %d
-Exp: %d
-Str: %d
-Dex: %d
-Con: %d
-Wis: %d
-Int: %d
-Cha: %d
-")
-
-(defn handle-me [{:keys [user-id chat-id message-id]}]
-  (let [character (engine.character/fetch user-id)
-        response-text (if character
-                        (format +me-template+
-                                (:characters/name character)
-                                (:characters/level character)
-                                (:characters/exp character)
-                                (:characters/str character)
-                                (:characters/dex character)
-                                (:characters/con character)
-                                (:characters/wis character)
-                                (:characters/int character)
-                                (:characters/cha character))
-                        "You have not created a character.")]
-    (telegram/map->CreateResponse {:chat-id chat-id
-                                   :message-id message-id
-                                   :text response-text})))
-
 (defmulti handler um/curr-step)
 (defmethod handler [:command :new] [um] (handle-new-character um))
-(defmethod handler [:command :me] [um] (handle-me um))
+(defmethod handler [:command :me] [um] (-> um um/advance me/handler))
 (defmethod handler [:callback :build] [um] (handle-build-callback um))
 (defmethod handler [:callback :done] [um] (handle-done-callback um))
 (defmethod handler :default [& _] nil)

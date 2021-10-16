@@ -12,11 +12,9 @@
   (migrate/migrate)
   (start "tba" config/telegram-bot-token handlers/router))
 
-(comment
-  (def debug (atom {}))
-  (add-tap (fn [[k v]] (swap! debug assoc k v)))
+(def debug (atom {}))
+(add-tap (fn [[k v]] (swap! debug assoc k v)))
 
-  ;; (tap> [:a 1])
-  ;; @debug
-  ;; => {:a 1}
-  )
+;; (tap> [:a 1])
+;; @debug
+;; => {:a 1}
